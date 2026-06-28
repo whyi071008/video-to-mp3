@@ -570,16 +570,34 @@
         try {
           const r = await fetch(API_BASE + "/api/platforms");
           const platforms = await r.json();
+
           const container = document.getElementById("platformOptions");
-          container.innerHTML =
-            '<div class="platform-chip active" data-platform="none" onclick="selectPlatform(\\'none\\', this)">智能检测</div>';
+
+          container.innerHTML = `
+      <div class="platform-chip active"
+           data-platform="none"
+           onclick="selectPlatform('none', this)">
+        智能检测
+      </div>
+    `;
+
           for (const [key, rule] of Object.entries(platforms)) {
-            container.innerHTML +=
-              '<div class="platform-chip" data-platform="' + key +
-              '" onclick="selectPlatform(\\'' + key + "', this)\">" + rule.label + "</div>";
+            container.innerHTML += `
+        <div class="platform-chip"
+             data-platform="${key}"
+             onclick="selectPlatform('${key}', this)">
+          ${rule.label}
+        </div>
+      `;
           }
-          container.innerHTML +=
-            '<div class="platform-chip" data-platform="custom" onclick="selectPlatform(\\'custom\\', this)">自定义</div>';
+
+          container.innerHTML += `
+      <div class="platform-chip"
+           data-platform="custom"
+           onclick="selectPlatform('custom', this)">
+        自定义
+      </div>
+    `;
         } catch (err) {
           showError("加载平台列表失败: " + err.message);
         }
@@ -588,7 +606,9 @@
 
       function selectPlatform(platform, el) {
         selectedPlatform = platform;
-        document.querySelectorAll(".platform-chip").forEach(function (c) { c.classList.remove("active"); });
+        document.querySelectorAll(".platform-chip").forEach(function (c) {
+          c.classList.remove("active");
+        });
         el.classList.add("active");
         var ws = document.getElementById("waveformSection");
         if (platform === "custom") {
@@ -607,7 +627,10 @@
       }
 
       function stopPlayback() {
-        if (audioEl) { audioEl.pause(); audioEl.currentTime = 0; }
+        if (audioEl) {
+          audioEl.pause();
+          audioEl.currentTime = 0;
+        }
         hidePlayhead();
       }
 
@@ -629,21 +652,29 @@
         showPlayhead();
       }
 
-      function showPlayhead() { document.getElementById("playhead").classList.add("visible"); }
+      function showPlayhead() {
+        document.getElementById("playhead").classList.add("visible");
+      }
       function hidePlayhead() {
         document.getElementById("playhead").classList.remove("visible");
         if (playheadFrame) cancelAnimationFrame(playheadFrame);
       }
       function updatePlayhead() {
         if (!audioEl || audioEl.paused || audioDuration <= 0) return;
-        document.getElementById("playhead").style.left = (audioEl.currentTime / audioDuration * 100) + "%";
+        document.getElementById("playhead").style.left =
+          (audioEl.currentTime / audioDuration) * 100 + "%";
         playheadFrame = requestAnimationFrame(updatePlayhead);
       }
 
       // --- File handling ---
       var dropZone = document.getElementById("dropZone");
-      dropZone.addEventListener("dragover", function (e) { e.preventDefault(); dropZone.classList.add("drag-over"); });
-      dropZone.addEventListener("dragleave", function () { dropZone.classList.remove("drag-over"); });
+      dropZone.addEventListener("dragover", function (e) {
+        e.preventDefault();
+        dropZone.classList.add("drag-over");
+      });
+      dropZone.addEventListener("dragleave", function () {
+        dropZone.classList.remove("drag-over");
+      });
       dropZone.addEventListener("drop", function (e) {
         e.preventDefault();
         dropZone.classList.remove("drag-over");
@@ -659,17 +690,25 @@
         var formData = new FormData();
         formData.append("file", file);
         try {
-          var r = await fetch(API_BASE + "/api/upload", { method: "POST", body: formData });
+          var r = await fetch(API_BASE + "/api/upload", {
+            method: "POST",
+            body: formData,
+          });
           var data = await r.json();
-          if (data.error) { showError(data.error); return; }
+          if (data.error) {
+            showError(data.error);
+            return;
+          }
           uploadedFilePath = data.path;
           uploadedFileName = data.filename;
           audioDuration = data.duration || 0;
           waveformPeaks = data.waveform || [];
-          document.getElementById("uploadFileName").textContent = "已选择: " + data.filename;
+          document.getElementById("uploadFileName").textContent =
+            "已选择: " + data.filename;
           document.getElementById("uploadFileName").style.display = "block";
           document.getElementById("uploadBtn").disabled = false;
-          document.getElementById("fileHint").textContent = "文件就绪，点击按钮开始转换";
+          document.getElementById("fileHint").textContent =
+            "文件就绪，点击按钮开始转换";
           document.getElementById("trimStart").value = "0";
           document.getElementById("trimEnd").value = audioDuration.toFixed(1);
           if (selectedPlatform === "custom" && waveformPeaks.length > 0) {
@@ -718,20 +757,28 @@
       function isInSelectedRange(t) {
         if (audioDuration <= 0) return true;
         var ts = parseFloat(document.getElementById("trimStart").value) || 0;
-        var te = parseFloat(document.getElementById("trimEnd").value) || audioDuration;
+        var te =
+          parseFloat(document.getElementById("trimEnd").value) || audioDuration;
         return t >= ts / audioDuration && t <= te / audioDuration;
       }
 
       function updateRangeDisplay() {
         if (audioDuration <= 0) return;
         var ts = parseFloat(document.getElementById("trimStart").value) || 0;
-        var te = parseFloat(document.getElementById("trimEnd").value) || audioDuration;
-        waveRange.style.left = (ts / audioDuration * 100) + "%";
-        waveRange.style.right = (100 - te / audioDuration * 100) + "%";
-        handleLeft.style.left = (ts / audioDuration * 100 - 1) + "%";
-        handleRight.style.right = (100 - te / audioDuration * 100 - 1) + "%";
+        var te =
+          parseFloat(document.getElementById("trimEnd").value) || audioDuration;
+        waveRange.style.left = (ts / audioDuration) * 100 + "%";
+        waveRange.style.right = 100 - (te / audioDuration) * 100 + "%";
+        handleLeft.style.left = (ts / audioDuration) * 100 - 1 + "%";
+        handleRight.style.right = 100 - (te / audioDuration) * 100 - 1 + "%";
         document.getElementById("waveformLabel").textContent =
-          "保留: " + formatTime(ts) + " ~ " + formatTime(te) + " (总长 " + formatTime(audioDuration) + ")";
+          "保留: " +
+          formatTime(ts) +
+          " ~ " +
+          formatTime(te) +
+          " (总长 " +
+          formatTime(audioDuration) +
+          ")";
       }
 
       function formatTime(sec) {
@@ -741,7 +788,9 @@
         return m + ":" + String(s).padStart(2, "0") + "." + ms;
       }
 
-      function onTrimInputChange() { if (waveformPeaks.length > 0) drawWaveform(); }
+      function onTrimInputChange() {
+        if (waveformPeaks.length > 0) drawWaveform();
+      }
 
       function resetTrim() {
         document.getElementById("trimStart").value = "0";
@@ -751,15 +800,25 @@
 
       // --- Drag handles ---
       var dragHandle = null;
-      handleLeft.addEventListener("mousedown", function (e) { e.preventDefault(); e.stopPropagation(); dragHandle = "left"; });
-      handleRight.addEventListener("mousedown", function (e) { e.preventDefault(); e.stopPropagation(); dragHandle = "right"; });
+      handleLeft.addEventListener("mousedown", function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        dragHandle = "left";
+      });
+      handleRight.addEventListener("mousedown", function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        dragHandle = "right";
+      });
 
       waveWrap.addEventListener("click", function (e) {
         if (audioDuration <= 0 || waveformPeaks.length === 0) return;
         if (dragHandle) return;
         var rect = waveWrap.getBoundingClientRect();
         var ratio = (e.clientX - rect.left) / rect.width;
-        seekAndPlay(Math.max(0, Math.min(audioDuration, ratio * audioDuration)));
+        seekAndPlay(
+          Math.max(0, Math.min(audioDuration, ratio * audioDuration)),
+        );
       });
 
       waveWrap.addEventListener("dblclick", function (e) {
@@ -768,11 +827,18 @@
         var ratio = (e.clientX - rect.left) / rect.width;
         var clickTime = ratio * audioDuration;
         var ts = parseFloat(document.getElementById("trimStart").value) || 0;
-        var te = parseFloat(document.getElementById("trimEnd").value) || audioDuration;
+        var te =
+          parseFloat(document.getElementById("trimEnd").value) || audioDuration;
         if (Math.abs(clickTime - ts) < Math.abs(clickTime - te)) {
-          document.getElementById("trimStart").value = Math.max(0, Math.min(clickTime, te - 0.1)).toFixed(1);
+          document.getElementById("trimStart").value = Math.max(
+            0,
+            Math.min(clickTime, te - 0.1),
+          ).toFixed(1);
         } else {
-          document.getElementById("trimEnd").value = Math.min(audioDuration, Math.max(clickTime, ts + 0.1)).toFixed(1);
+          document.getElementById("trimEnd").value = Math.min(
+            audioDuration,
+            Math.max(clickTime, ts + 0.1),
+          ).toFixed(1);
         }
         drawWaveform();
       });
@@ -780,22 +846,40 @@
       document.addEventListener("mousemove", function (e) {
         if (!dragHandle || audioDuration <= 0) return;
         var rect = waveWrap.getBoundingClientRect();
-        var ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+        var ratio = Math.max(
+          0,
+          Math.min(1, (e.clientX - rect.left) / rect.width),
+        );
         var time = ratio * audioDuration;
         if (dragHandle === "left") {
-          var te = parseFloat(document.getElementById("trimEnd").value) || audioDuration;
-          document.getElementById("trimStart").value = Math.max(0, Math.min(time, te - 0.1)).toFixed(1);
+          var te =
+            parseFloat(document.getElementById("trimEnd").value) ||
+            audioDuration;
+          document.getElementById("trimStart").value = Math.max(
+            0,
+            Math.min(time, te - 0.1),
+          ).toFixed(1);
         } else {
           var ts = parseFloat(document.getElementById("trimStart").value) || 0;
-          document.getElementById("trimEnd").value = Math.min(audioDuration, Math.max(time, ts + 0.1)).toFixed(1);
+          document.getElementById("trimEnd").value = Math.min(
+            audioDuration,
+            Math.max(time, ts + 0.1),
+          ).toFixed(1);
         }
         drawWaveform();
       });
 
-      document.addEventListener("mouseup", function () { dragHandle = null; });
+      document.addEventListener("mouseup", function () {
+        dragHandle = null;
+      });
 
       new ResizeObserver(function () {
-        if (waveformPeaks.length > 0 && document.getElementById("waveformSection").classList.contains("visible")) {
+        if (
+          waveformPeaks.length > 0 &&
+          document
+            .getElementById("waveformSection")
+            .classList.contains("visible")
+        ) {
           drawWaveform();
         }
       }).observe(waveWrap);
@@ -803,21 +887,32 @@
       // --- Process ---
       function processUrl() {
         var url = document.getElementById("urlInput").value.trim();
-        if (!url) { showError("请输入视频链接"); return; }
+        if (!url) {
+          showError("请输入视频链接");
+          return;
+        }
         startProcess(url, "url", url);
       }
 
       function processFile() {
-        if (!uploadedFilePath) { showError("请先选择视频文件"); return; }
+        if (!uploadedFilePath) {
+          showError("请先选择视频文件");
+          return;
+        }
         startProcess(uploadedFilePath, "file", uploadedFileName);
       }
 
       async function startProcess(source, sourceType, autoDetectText) {
         clearError();
         stopPlayback();
-        var trimStart = parseFloat(document.getElementById("trimStart").value) || 0;
-        var trimEndVal = parseFloat(document.getElementById("trimEnd").value) || 0;
-        var trimEnd = audioDuration > 0 ? Math.max(0, audioDuration - trimEndVal) : trimEndVal;
+        var trimStart =
+          parseFloat(document.getElementById("trimStart").value) || 0;
+        var trimEndVal =
+          parseFloat(document.getElementById("trimEnd").value) || 0;
+        var trimEnd =
+          audioDuration > 0
+            ? Math.max(0, audioDuration - trimEndVal)
+            : trimEndVal;
         var displayName = document.getElementById("renameInput").value.trim();
         showProgress();
         try {
@@ -831,11 +926,14 @@
               trim_start: trimStart,
               trim_end: trimEnd,
               auto_detect_text: autoDetectText,
-              display_name: displayName
-            })
+              display_name: displayName,
+            }),
           });
           var data = await r.json();
-          if (data.error) { showError(data.error); return; }
+          if (data.error) {
+            showError(data.error);
+            return;
+          }
           currentJobId = data.job_id;
           pollStatus();
         } catch (err) {
@@ -849,8 +947,14 @@
           var r = await fetch(API_BASE + "/api/status/" + currentJobId);
           var data = await r.json();
           updateProgress(data.progress || 0, data.status);
-          if (data.status === "done") { onComplete(data); return; }
-          if (data.status === "error") { showError(data.error || "处理失败"); return; }
+          if (data.status === "done") {
+            onComplete(data);
+            return;
+          }
+          if (data.status === "error") {
+            showError(data.error || "处理失败");
+            return;
+          }
           pollTimer = setTimeout(pollStatus, 800);
         } catch (err) {
           showError("查询状态失败: " + err.message);
@@ -868,9 +972,11 @@
 
       function updateProgress(pct, status) {
         document.getElementById("progressBar").style.width = pct + "%";
-        document.getElementById("progressPercent").textContent = Math.round(pct) + "%";
+        document.getElementById("progressPercent").textContent =
+          Math.round(pct) + "%";
         var textMap = { processing: "处理中...", done: "完成!", error: "失败" };
-        document.getElementById("progressText").textContent = textMap[status] || "处理中...";
+        document.getElementById("progressText").textContent =
+          textMap[status] || "处理中...";
       }
 
       function onComplete(data) {
@@ -913,17 +1019,21 @@
         document.getElementById("uploadFileName").textContent = "";
         document.getElementById("uploadFileName").style.display = "none";
         document.getElementById("uploadBtn").disabled = true;
-        document.getElementById("fileHint").textContent = "请先在文件上传区选择视频";
+        document.getElementById("fileHint").textContent =
+          "请先在文件上传区选择视频";
         document.getElementById("renameInput").value = "";
         document.getElementById("trimStart").value = "0";
         document.getElementById("trimEnd").value = "0";
         document.getElementById("waveformSection").classList.remove("visible");
-        document.querySelectorAll(".platform-chip").forEach(function (c) { c.classList.remove("active"); });
+        document.querySelectorAll(".platform-chip").forEach(function (c) {
+          c.classList.remove("active");
+        });
         var noneChip = document.querySelector('[data-platform="none"]');
         if (noneChip) noneChip.classList.add("active");
         var ctx = canvasCtx;
         var canvas = waveCanvas;
-        if (ctx && canvas.width > 0) ctx.clearRect(0, 0, canvas.width, canvas.height);
+        if (ctx && canvas.width > 0)
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
         document.getElementById("progressCard").classList.remove("visible");
         document.getElementById("downloadRow").classList.remove("visible");
         document.getElementById("downloadBtn").style.display = "none";
