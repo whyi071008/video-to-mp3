@@ -1,0 +1,745 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>视频转MP3</title>
+<style>
+:root {
+  --bg: #f5f5f5;
+  --card: #ffffff;
+  --text: #1a1a1a;
+  --secondary: #666;
+  --accent: #2563eb;
+  --accent-hover: #1d4ed8;
+  --border: #e5e5e5;
+  --danger: #dc2626;
+  --success: #16a34a;
+  --radius: 8px;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  padding: 40px 16px;
+}
+.container { max-width: 680px; width: 100%; }
+h1 { font-size: 24px; font-weight: 600; margin-bottom: 8px; }
+.subtitle { color: var(--secondary); font-size: 14px; margin-bottom: 24px; }
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 24px;
+  margin-bottom: 16px;
+}
+.card-title {
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--secondary);
+  margin-bottom: 16px;
+}
+.input-row { display: flex; gap: 8px; margin-bottom: 8px; }
+.input-row input[type="text"] {
+  flex: 1;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.15s;
+}
+.input-row input[type="text"]:focus { border-color: var(--accent); }
+.btn {
+  padding: 10px 20px;
+  background: var(--accent);
+  color: white;
+  border: none;
+  border-radius: var(--radius);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.btn:hover { background: var(--accent-hover); }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn-outline {
+  background: transparent;
+  color: var(--accent);
+  border: 1px solid var(--accent);
+}
+.btn-outline:hover { background: var(--accent); color: white; }
+.btn-sm { padding: 6px 14px; font-size: 13px; }
+
+.file-zone {
+  border: 2px dashed var(--border);
+  border-radius: var(--radius);
+  padding: 32px;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+  margin-bottom: 12px;
+}
+.file-zone:hover, .file-zone.drag-over { border-color: var(--accent); background: #eff6ff; }
+.file-zone p { color: var(--secondary); font-size: 14px; }
+.file-zone .filename { color: var(--accent); font-weight: 500; font-size: 13px; margin-top: 4px; }
+.file-zone svg { margin-bottom: 8px; }
+
+.platform-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.platform-chip {
+  padding: 7px 14px;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.15s;
+  background: var(--card);
+}
+.platform-chip:hover { border-color: var(--accent); }
+.platform-chip.active { background: var(--accent); color: white; border-color: var(--accent); }
+
+/* Waveform */
+.waveform-section { display: none; margin-top: 12px; }
+.waveform-section.visible { display: block; }
+.waveform-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+.waveform-time {
+  font-size: 12px;
+  color: var(--secondary);
+  font-variant-numeric: tabular-nums;
+}
+.waveform-wrap {
+  position: relative;
+  background: #f0f2f5;
+  border-radius: var(--radius);
+  height: 80px;
+  cursor: pointer;
+  user-select: none;
+  overflow: hidden;
+}
+.waveform-wrap canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.waveform-wrap .playhead {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--danger);
+  pointer-events: none;
+  z-index: 3;
+  display: none;
+}
+.waveform-wrap .playhead.visible { display: block; }
+.waveform-range {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: rgba(37, 99, 235, 0.12);
+  border-left: 3px solid var(--accent);
+  border-right: 3px solid var(--accent);
+  pointer-events: none;
+  z-index: 1;
+}
+.waveform-handle {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 16px;
+  cursor: ew-resize;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.waveform-handle::after {
+  content: '';
+  width: 4px;
+  height: 28px;
+  background: var(--accent);
+  border-radius: 2px;
+}
+.waveform-handle-left { left: -8px; }
+.waveform-handle-right { right: -8px; }
+.trim-values {
+  display: flex;
+  gap: 16px;
+  margin-top: 8px;
+}
+.trim-values .trim-field { flex: 1; display: flex; flex-direction: column; gap: 2px; }
+.trim-values label { font-size: 11px; color: var(--secondary); font-weight: 500; }
+.trim-values input {
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 13px;
+  outline: none;
+  width: 100%;
+}
+.trim-values input:focus { border-color: var(--accent); }
+
+/* Rename */
+.rename-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-top: 12px;
+}
+.rename-row input {
+  flex: 1;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 13px;
+  outline: none;
+}
+.rename-row input:focus { border-color: var(--accent); }
+.rename-hint { font-size: 11px; color: var(--secondary); margin-top: 4px; }
+
+/* Action buttons area */
+.action-area {
+  display: flex;
+  gap: 8px;
+  margin-top: 16px;
+  align-items: center;
+}
+
+/* Progress */
+.progress-card {
+  display: none;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px 24px;
+  margin-bottom: 16px;
+}
+.progress-card.visible { display: block; }
+.progress-bar-wrap {
+  background: var(--border);
+  border-radius: 4px;
+  height: 6px;
+  margin: 12px 0;
+  overflow: hidden;
+}
+.progress-bar-fill {
+  background: var(--accent);
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.3s;
+  width: 0%;
+}
+.progress-status {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 14px;
+}
+.progress-text { color: var(--secondary); }
+.download-row { display: none; margin-top: 12px; gap: 8px; align-items: center; }
+.download-row.visible { display: flex; }
+.error-text { color: var(--danger); font-size: 13px; margin-top: 8px; }
+.hidden { display: none; }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>视频转 MP3</h1>
+  <p class="subtitle">粘贴链接或上传视频，提取音频并裁剪不需要的片段</p>
+
+  <!-- URL card -->
+  <div class="card">
+    <div class="card-title">链接转换</div>
+    <div class="input-row">
+      <input type="text" id="urlInput" placeholder="粘贴视频链接（抖音、B站、YouTube等）">
+      <button class="btn" onclick="processUrl()">转换</button>
+    </div>
+  </div>
+
+  <!-- File upload card -->
+  <div class="card" id="uploadCard">
+    <div class="card-title">文件上传</div>
+    <div class="file-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
+      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#666" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17,8 12,3 7,8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+      <p>拖拽视频文件到此处或点击选择</p>
+      <p class="filename" id="uploadFileName" style="display:none"></p>
+    </div>
+    <input type="file" id="fileInput" accept="video/*" class="hidden" onchange="onFileSelect(event)">
+  </div>
+
+  <!-- Trim + rename + action card -->
+  <div class="card">
+    <div class="card-title">裁剪设置</div>
+    <div class="platform-row" id="platformOptions"></div>
+    <div class="waveform-section" id="waveformSection">
+      <div class="waveform-header">
+        <span class="waveform-time" id="waveformLabel">选择裁剪范围（点击声波试听）</span>
+        <button class="btn btn-sm btn-outline" onclick="resetTrim()">重置</button>
+      </div>
+      <div class="waveform-wrap" id="waveformWrap">
+        <canvas id="waveCanvas"></canvas>
+        <div class="playhead" id="playhead"></div>
+        <div class="waveform-range" id="waveRange"></div>
+        <div class="waveform-handle waveform-handle-left" id="handleLeft"></div>
+        <div class="waveform-handle waveform-handle-right" id="handleRight"></div>
+      </div>
+      <div class="trim-values">
+        <div class="trim-field">
+          <label>保留开头</label>
+          <input type="number" id="trimStart" value="0" min="0" step="0.1" onchange="onTrimInputChange()">
+        </div>
+        <div class="trim-field">
+          <label>保留到</label>
+          <input type="number" id="trimEnd" value="0" min="0" step="0.1" onchange="onTrimInputChange()">
+        </div>
+      </div>
+    </div>
+    <div class="rename-row">
+      <input type="text" id="renameInput" placeholder="下载文件名（可选）">
+      <span style="font-size:13px;color:var(--secondary)">.mp3</span>
+    </div>
+    <p class="rename-hint">留空则使用原始文件名</p>
+
+    <div class="action-area">
+      <button class="btn" id="uploadBtn" onclick="processFile()" disabled>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17,8 12,3 7,8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        上传并转换
+      </button>
+      <span style="font-size:12px;color:var(--secondary)" id="fileHint">请先在文件上传区选择视频</span>
+    </div>
+  </div>
+
+  <!-- Progress + results -->
+  <div class="progress-card" id="progressCard">
+    <div class="progress-status">
+      <span class="progress-text" id="progressText">准备中...</span>
+      <span class="progress-text" id="progressPercent">0%</span>
+    </div>
+    <div class="progress-bar-wrap">
+      <div class="progress-bar-fill" id="progressBar"></div>
+    </div>
+    <div class="download-row" id="downloadRow">
+      <button class="btn" id="downloadBtn" onclick="downloadMp3()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7,10 12,15 17,10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        下载 MP3
+      </button>
+      <button class="btn btn-outline btn-sm" id="continueBtn" onclick="resetAll()" style="display:none">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12,6 12,12 16,14"/></svg>
+        继续上传
+      </button>
+      <span class="error-text" id="errorText"></span>
+    </div>
+  </div>
+</div>
+
+<script>
+const API_BASE =
+  window.location.hostname === "localhost" ||
+  window.location.hostname === "127.0.0.1"
+    ? "http://localhost:5100"
+    : "https://YOUR_RENDER_URL.onrender.com";
+
+let currentJobId = null;
+let uploadedFilePath = null;
+let uploadedFileName = "";
+let selectedPlatform = "none";
+let pollTimer = null;
+let audioDuration = 0;
+let waveformPeaks = [];
+let canvasCtx = null;
+let audioEl = null;
+let playheadFrame = null;
+
+// --- Init platforms ---
+async function loadPlatforms() {
+  try {
+    const r = await fetch(API_BASE + "/api/platforms");
+    const platforms = await r.json();
+    const container = document.getElementById("platformOptions");
+    container.innerHTML =
+      '<div class="platform-chip active" data-platform="none" onclick="selectPlatform(\\'none\\', this)">智能检测</div>';
+    for (const [key, rule] of Object.entries(platforms)) {
+      container.innerHTML +=
+        '<div class="platform-chip" data-platform="' + key +
+        '" onclick="selectPlatform(\\'' + key + "', this)\">" + rule.label + "</div>";
+    }
+    container.innerHTML +=
+      '<div class="platform-chip" data-platform="custom" onclick="selectPlatform(\\'custom\\', this)">自定义</div>';
+  } catch (err) {
+    showError("加载平台列表失败: " + err.message);
+  }
+}
+loadPlatforms();
+
+function selectPlatform(platform, el) {
+  selectedPlatform = platform;
+  document.querySelectorAll(".platform-chip").forEach(function (c) { c.classList.remove("active"); });
+  el.classList.add("active");
+  var ws = document.getElementById("waveformSection");
+  if (platform === "custom") {
+    ws.classList.add("visible");
+    if (waveformPeaks.length > 0) drawWaveform();
+  } else {
+    ws.classList.remove("visible");
+    stopPlayback();
+  }
+}
+
+// --- Audio playback ---
+function getMediaUrl() {
+  if (!uploadedFilePath) return null;
+  return API_BASE + "/api/media/" + uploadedFilePath.split("/").pop();
+}
+
+function stopPlayback() {
+  if (audioEl) { audioEl.pause(); audioEl.currentTime = 0; }
+  hidePlayhead();
+}
+
+function seekAndPlay(time) {
+  var url = getMediaUrl();
+  if (!url) return;
+  if (!audioEl) {
+    audioEl = new Audio();
+    audioEl.addEventListener("timeupdate", updatePlayhead);
+    audioEl.addEventListener("ended", hidePlayhead);
+    audioEl.addEventListener("pause", hidePlayhead);
+  }
+  if (!audioEl.src.endsWith(url.split("/").pop())) {
+    audioEl.src = url;
+    audioEl.load();
+  }
+  audioEl.currentTime = time;
+  audioEl.play();
+  showPlayhead();
+}
+
+function showPlayhead() { document.getElementById("playhead").classList.add("visible"); }
+function hidePlayhead() {
+  document.getElementById("playhead").classList.remove("visible");
+  if (playheadFrame) cancelAnimationFrame(playheadFrame);
+}
+function updatePlayhead() {
+  if (!audioEl || audioEl.paused || audioDuration <= 0) return;
+  document.getElementById("playhead").style.left = (audioEl.currentTime / audioDuration * 100) + "%";
+  playheadFrame = requestAnimationFrame(updatePlayhead);
+}
+
+// --- File handling ---
+var dropZone = document.getElementById("dropZone");
+dropZone.addEventListener("dragover", function (e) { e.preventDefault(); dropZone.classList.add("drag-over"); });
+dropZone.addEventListener("dragleave", function () { dropZone.classList.remove("drag-over"); });
+dropZone.addEventListener("drop", function (e) {
+  e.preventDefault();
+  dropZone.classList.remove("drag-over");
+  if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
+});
+
+function onFileSelect(e) {
+  if (e.target.files.length) handleFile(e.target.files[0]);
+}
+
+async function handleFile(file) {
+  stopPlayback();
+  var formData = new FormData();
+  formData.append("file", file);
+  try {
+    var r = await fetch(API_BASE + "/api/upload", { method: "POST", body: formData });
+    var data = await r.json();
+    if (data.error) { showError(data.error); return; }
+    uploadedFilePath = data.path;
+    uploadedFileName = data.filename;
+    audioDuration = data.duration || 0;
+    waveformPeaks = data.waveform || [];
+    document.getElementById("uploadFileName").textContent = "已选择: " + data.filename;
+    document.getElementById("uploadFileName").style.display = "block";
+    document.getElementById("uploadBtn").disabled = false;
+    document.getElementById("fileHint").textContent = "文件就绪，点击按钮开始转换";
+    document.getElementById("trimStart").value = "0";
+    document.getElementById("trimEnd").value = audioDuration.toFixed(1);
+    if (selectedPlatform === "custom" && waveformPeaks.length > 0) {
+      document.getElementById("waveformSection").classList.add("visible");
+      setTimeout(drawWaveform, 100);
+    }
+  } catch (err) {
+    showError("上传失败: " + err.message);
+  }
+}
+
+// --- Waveform ---
+var waveWrap = document.getElementById("waveformWrap");
+var waveCanvas = document.getElementById("waveCanvas");
+var waveRange = document.getElementById("waveRange");
+var handleLeft = document.getElementById("handleLeft");
+var handleRight = document.getElementById("handleRight");
+canvasCtx = waveCanvas.getContext("2d");
+
+function drawWaveform() {
+  var canvas = waveCanvas;
+  var rect = waveWrap.getBoundingClientRect();
+  canvas.width = rect.width * devicePixelRatio;
+  canvas.height = rect.height * devicePixelRatio;
+  canvas.style.width = rect.width + "px";
+  canvas.style.height = rect.height + "px";
+  var ctx = canvasCtx;
+  var w = canvas.width;
+  var h = canvas.height;
+  ctx.clearRect(0, 0, w, h);
+  var peaks = waveformPeaks;
+  if (peaks.length === 0) return;
+  var barW = w / peaks.length;
+  var midY = h / 2;
+  for (var i = 0; i < peaks.length; i++) {
+    var barH = Math.max(2, peaks[i] * h * 0.8);
+    var x = i * barW;
+    var y = midY - barH / 2;
+    var inRange = isInSelectedRange(i / peaks.length);
+    ctx.fillStyle = inRange ? "#2563eb" : "#cbd5e1";
+    ctx.fillRect(x, y, Math.max(1, barW - 1), barH);
+  }
+  updateRangeDisplay();
+}
+
+function isInSelectedRange(t) {
+  if (audioDuration <= 0) return true;
+  var ts = parseFloat(document.getElementById("trimStart").value) || 0;
+  var te = parseFloat(document.getElementById("trimEnd").value) || audioDuration;
+  return t >= ts / audioDuration && t <= te / audioDuration;
+}
+
+function updateRangeDisplay() {
+  if (audioDuration <= 0) return;
+  var ts = parseFloat(document.getElementById("trimStart").value) || 0;
+  var te = parseFloat(document.getElementById("trimEnd").value) || audioDuration;
+  waveRange.style.left = (ts / audioDuration * 100) + "%";
+  waveRange.style.right = (100 - te / audioDuration * 100) + "%";
+  handleLeft.style.left = (ts / audioDuration * 100 - 1) + "%";
+  handleRight.style.right = (100 - te / audioDuration * 100 - 1) + "%";
+  document.getElementById("waveformLabel").textContent =
+    "保留: " + formatTime(ts) + " ~ " + formatTime(te) + " (总长 " + formatTime(audioDuration) + ")";
+}
+
+function formatTime(sec) {
+  var m = Math.floor(sec / 60);
+  var s = Math.floor(sec % 60);
+  var ms = Math.floor((sec % 1) * 10);
+  return m + ":" + String(s).padStart(2, "0") + "." + ms;
+}
+
+function onTrimInputChange() { if (waveformPeaks.length > 0) drawWaveform(); }
+
+function resetTrim() {
+  document.getElementById("trimStart").value = "0";
+  document.getElementById("trimEnd").value = audioDuration.toFixed(1);
+  drawWaveform();
+}
+
+// --- Drag handles ---
+var dragHandle = null;
+handleLeft.addEventListener("mousedown", function (e) { e.preventDefault(); e.stopPropagation(); dragHandle = "left"; });
+handleRight.addEventListener("mousedown", function (e) { e.preventDefault(); e.stopPropagation(); dragHandle = "right"; });
+
+waveWrap.addEventListener("click", function (e) {
+  if (audioDuration <= 0 || waveformPeaks.length === 0) return;
+  if (dragHandle) return;
+  var rect = waveWrap.getBoundingClientRect();
+  var ratio = (e.clientX - rect.left) / rect.width;
+  seekAndPlay(Math.max(0, Math.min(audioDuration, ratio * audioDuration)));
+});
+
+waveWrap.addEventListener("dblclick", function (e) {
+  if (audioDuration <= 0 || waveformPeaks.length === 0) return;
+  var rect = waveWrap.getBoundingClientRect();
+  var ratio = (e.clientX - rect.left) / rect.width;
+  var clickTime = ratio * audioDuration;
+  var ts = parseFloat(document.getElementById("trimStart").value) || 0;
+  var te = parseFloat(document.getElementById("trimEnd").value) || audioDuration;
+  if (Math.abs(clickTime - ts) < Math.abs(clickTime - te)) {
+    document.getElementById("trimStart").value = Math.max(0, Math.min(clickTime, te - 0.1)).toFixed(1);
+  } else {
+    document.getElementById("trimEnd").value = Math.min(audioDuration, Math.max(clickTime, ts + 0.1)).toFixed(1);
+  }
+  drawWaveform();
+});
+
+document.addEventListener("mousemove", function (e) {
+  if (!dragHandle || audioDuration <= 0) return;
+  var rect = waveWrap.getBoundingClientRect();
+  var ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+  var time = ratio * audioDuration;
+  if (dragHandle === "left") {
+    var te = parseFloat(document.getElementById("trimEnd").value) || audioDuration;
+    document.getElementById("trimStart").value = Math.max(0, Math.min(time, te - 0.1)).toFixed(1);
+  } else {
+    var ts = parseFloat(document.getElementById("trimStart").value) || 0;
+    document.getElementById("trimEnd").value = Math.min(audioDuration, Math.max(time, ts + 0.1)).toFixed(1);
+  }
+  drawWaveform();
+});
+
+document.addEventListener("mouseup", function () { dragHandle = null; });
+
+new ResizeObserver(function () {
+  if (waveformPeaks.length > 0 && document.getElementById("waveformSection").classList.contains("visible")) {
+    drawWaveform();
+  }
+}).observe(waveWrap);
+
+// --- Process ---
+function processUrl() {
+  var url = document.getElementById("urlInput").value.trim();
+  if (!url) { showError("请输入视频链接"); return; }
+  startProcess(url, "url", url);
+}
+
+function processFile() {
+  if (!uploadedFilePath) { showError("请先选择视频文件"); return; }
+  startProcess(uploadedFilePath, "file", uploadedFileName);
+}
+
+async function startProcess(source, sourceType, autoDetectText) {
+  clearError();
+  stopPlayback();
+  var trimStart = parseFloat(document.getElementById("trimStart").value) || 0;
+  var trimEndVal = parseFloat(document.getElementById("trimEnd").value) || 0;
+  var trimEnd = audioDuration > 0 ? Math.max(0, audioDuration - trimEndVal) : trimEndVal;
+  var displayName = document.getElementById("renameInput").value.trim();
+  showProgress();
+  try {
+    var r = await fetch(API_BASE + "/api/process", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        source: source,
+        source_type: sourceType,
+        platform: selectedPlatform,
+        trim_start: trimStart,
+        trim_end: trimEnd,
+        auto_detect_text: autoDetectText,
+        display_name: displayName
+      })
+    });
+    var data = await r.json();
+    if (data.error) { showError(data.error); return; }
+    currentJobId = data.job_id;
+    pollStatus();
+  } catch (err) {
+    showError("请求失败: " + err.message);
+  }
+}
+
+async function pollStatus() {
+  if (!currentJobId) return;
+  try {
+    var r = await fetch(API_BASE + "/api/status/" + currentJobId);
+    var data = await r.json();
+    updateProgress(data.progress || 0, data.status);
+    if (data.status === "done") { onComplete(data); return; }
+    if (data.status === "error") { showError(data.error || "处理失败"); return; }
+    pollTimer = setTimeout(pollStatus, 800);
+  } catch (err) {
+    showError("查询状态失败: " + err.message);
+  }
+}
+
+function showProgress() {
+  document.getElementById("progressCard").classList.add("visible");
+  document.getElementById("downloadRow").classList.add("visible");
+  document.getElementById("downloadBtn").style.display = "none";
+  document.getElementById("continueBtn").style.display = "none";
+  document.getElementById("errorText").textContent = "";
+  updateProgress(0, "processing");
+}
+
+function updateProgress(pct, status) {
+  document.getElementById("progressBar").style.width = pct + "%";
+  document.getElementById("progressPercent").textContent = Math.round(pct) + "%";
+  var textMap = { processing: "处理中...", done: "完成!", error: "失败" };
+  document.getElementById("progressText").textContent = textMap[status] || "处理中...";
+}
+
+function onComplete(data) {
+  updateProgress(100, "done");
+  document.getElementById("downloadBtn").style.display = "inline-flex";
+  document.getElementById("continueBtn").style.display = "inline-flex";
+  if (pollTimer) clearTimeout(pollTimer);
+}
+
+function downloadMp3() {
+  if (!currentJobId) return;
+  window.location.href = API_BASE + "/api/download/" + currentJobId;
+}
+
+function showError(msg) {
+  document.getElementById("progressCard").classList.add("visible");
+  document.getElementById("downloadRow").classList.add("visible");
+  document.getElementById("downloadBtn").style.display = "none";
+  document.getElementById("continueBtn").style.display = "inline-flex";
+  updateProgress(0, "error");
+  document.getElementById("errorText").textContent = msg;
+  if (pollTimer) clearTimeout(pollTimer);
+}
+
+function clearError() {
+  document.getElementById("errorText").textContent = "";
+}
+
+function resetAll() {
+  stopPlayback();
+  currentJobId = null;
+  uploadedFilePath = null;
+  uploadedFileName = "";
+  audioDuration = 0;
+  waveformPeaks = [];
+  selectedPlatform = "none";
+  if (pollTimer) clearTimeout(pollTimer);
+  if (playheadFrame) cancelAnimationFrame(playheadFrame);
+  document.getElementById("fileInput").value = "";
+  document.getElementById("uploadFileName").textContent = "";
+  document.getElementById("uploadFileName").style.display = "none";
+  document.getElementById("uploadBtn").disabled = true;
+  document.getElementById("fileHint").textContent = "请先在文件上传区选择视频";
+  document.getElementById("renameInput").value = "";
+  document.getElementById("trimStart").value = "0";
+  document.getElementById("trimEnd").value = "0";
+  document.getElementById("waveformSection").classList.remove("visible");
+  document.querySelectorAll(".platform-chip").forEach(function (c) { c.classList.remove("active"); });
+  var noneChip = document.querySelector('[data-platform="none"]');
+  if (noneChip) noneChip.classList.add("active");
+  var ctx = canvasCtx;
+  var canvas = waveCanvas;
+  if (ctx && canvas.width > 0) ctx.clearRect(0, 0, canvas.width, canvas.height);
+  document.getElementById("progressCard").classList.remove("visible");
+  document.getElementById("downloadRow").classList.remove("visible");
+  document.getElementById("downloadBtn").style.display = "none";
+  document.getElementById("continueBtn").style.display = "none";
+  document.getElementById("errorText").textContent = "";
+  document.getElementById("progressBar").style.width = "0%";
+  document.getElementById("progressPercent").textContent = "0%";
+  document.getElementById("progressText").textContent = "准备中...";
+  document.getElementById("urlInput").value = "";
+}
+</script>
+</body>
+</html>
