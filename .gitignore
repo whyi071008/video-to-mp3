@@ -5,3 +5,10 @@ work/outputs/
 work/work/
 work/upload_*.mp4
 outputs/
+
+# wrangler files
+.wrangler
+.dev.vars*
+!.dev.vars.example
+.env*
+!.env.example
